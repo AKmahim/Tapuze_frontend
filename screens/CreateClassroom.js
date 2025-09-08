@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import * as Clipboard from 'expo-clipboard';   // ✅ use expo-clipboard
 
 export default function CreateClassroom({ navigation, route }) {
   const [className, setClassName] = useState('');
   const [classDescription, setClassDescription] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const { addClassroom } = useAuth();
 
   const generateRandomCode = () => {
@@ -14,25 +15,37 @@ export default function CreateClassroom({ navigation, route }) {
 
   const [classCode, setClassCode] = useState(generateRandomCode());
 
-  const handleCreateClassroom = () => {
-    if (className.trim()) {
-      try {
-        const newClassroom = {
-          name: className,
-          code: classCode,
-          description: classDescription,
-          studentCount: 0,
-        };
-        
-        addClassroom(newClassroom);
-        
-        Alert.alert('Success', `Classroom "${className}" created with code: ${classCode}`);
-        navigation.goBack();
-      } catch (error) {
-        Alert.alert('Error', error.message);
-      }
-    } else {
+  const handleCreateClassroom = async () => {
+    if (!className.trim()) {
       Alert.alert('Error', 'Please enter a classroom name');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const newClassroom = {
+        name: className.trim(),
+        code: classCode,
+        description: classDescription.trim(),
+        studentCount: 0,
+      };
+      
+      const createdClassroom = await addClassroom(newClassroom);
+      
+      Alert.alert(
+        'Success', 
+        `Classroom "${className}" created successfully with code: ${classCode}`,
+        [
+          {
+            text: 'OK',
+            onPress: () => navigation.goBack()
+          }
+        ]
+      );
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Failed to create classroom. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -82,11 +95,18 @@ export default function CreateClassroom({ navigation, route }) {
       </View>
       
       <TouchableOpacity 
-        style={[styles.createButton, !className.trim() && styles.disabledButton]}
+        style={[
+          styles.createButton, 
+          (!className.trim() || isLoading) && styles.disabledButton
+        ]}
         onPress={handleCreateClassroom}
-        disabled={!className.trim()}
+        disabled={!className.trim() || isLoading}
       >
-        <Text style={styles.createButtonText}>Create Classroom</Text>
+        {isLoading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.createButtonText}>Create Classroom</Text>
+        )}
       </TouchableOpacity>
     </View>
   );

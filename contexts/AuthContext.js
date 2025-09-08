@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
-import { signupLecturer, signupStudent, signinLecturer, signinStudent } from '../services/apiService';
+import { signupLecturer, signupStudent, signinLecturer, signinStudent, createClassroom, getAllClassrooms } from '../services/apiService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const AuthContext = createContext();
@@ -166,30 +166,64 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const addClassroom = (newClassroom) => {
-    // Check if classroom with same name already exists
-    const nameExists = classrooms.some(
-      classroom => classroom.name.toLowerCase() === newClassroom.name.toLowerCase()
-    );
+  const addClassroom = async (newClassroom) => {
+    setLoading(true);
+    try {
+      console.log('AuthContext: Creating classroom with data:', newClassroom);
+      
+      // Call the real API to create classroom
+      const response = await createClassroom(
+        newClassroom.name, 
+        newClassroom.description || '', 
+        newClassroom.code
+      );
 
-    if (nameExists) {
-      throw new Error('A classroom with this name already exists');
+      console.log('AuthContext: Received response:', response);
+
+      // Add the classroom from API response to local state
+      const classroomWithId = {
+        id: response.classroom?.id || generateUniqueId(),
+        name: response.classroom?.class_name || newClassroom.name,
+        code: response.classroom?.classroom_code || newClassroom.code,
+        description: response.classroom?.class_details || newClassroom.description,
+        studentCount: 0, // This might come from API in the future
+        ...response.classroom
+      };
+      
+      console.log('AuthContext: Adding classroom to local state:', classroomWithId);
+      setClassrooms(prev => [...prev, classroomWithId]);
+      return classroomWithId;
+    } catch (error) {
+      console.error('Add classroom error:', error);
+      throw error;
+    } finally {
+      setLoading(false);
     }
+  };
 
-    // Check if classroom with same code already exists
-    const codeExists = classrooms.some(
-      classroom => classroom.code === newClassroom.code
-    );
-
-    if (codeExists) {
-      throw new Error('A classroom with this code already exists');
+  const fetchClassrooms = async () => {
+    setLoading(true);
+    try {
+      const response = await getAllClassrooms();
+      // Transform API response to match local state structure
+      const transformedClassrooms = response.classrooms?.map(classroom => ({
+        id: classroom.id,
+        name: classroom.class_name,
+        code: classroom.classroom_code,
+        description: classroom.class_details,
+        studentCount: classroom.student_count || 0,
+        created_at: classroom.created_at,
+        updated_at: classroom.updated_at
+      })) || [];
+      
+      setClassrooms(transformedClassrooms);
+      return transformedClassrooms;
+    } catch (error) {
+      console.error('Fetch classrooms error:', error);
+      throw error;
+    } finally {
+      setLoading(false);
     }
-
-    const classroomWithId = {
-      ...newClassroom,
-      id: generateUniqueId()
-    };
-    setClassrooms(prev => [...prev, classroomWithId]);
   };
 
   const deleteClassroom = (classroomId) => {
@@ -267,6 +301,7 @@ export const AuthProvider = ({ children }) => {
       logout,
       joinClassroom,
       addClassroom,
+      fetchClassrooms,
       deleteClassroom,
       addAssignment,
       deleteAssignment,

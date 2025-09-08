@@ -122,6 +122,75 @@ export const signinStudent = async (email, password) => {
   }
 };
 
+// Classroom Management API functions
+export const createClassroom = async (className, classDetails, classroomCode) => {
+  try {
+    console.log('Attempting to create classroom:', `${API_BASE_URL}/classrooms`);
+    const token = await getAuthToken();
+    console.log('Token being used:', token ? `${token.substring(0, 20)}...` : 'No token found');
+    console.log('Request payload:', { class_name: className, class_details: classDetails, classroom_code: classroomCode });
+    
+    const response = await fetch(`${API_BASE_URL}/classrooms`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        class_name: className,
+        class_details: classDetails,
+        classroom_code: classroomCode
+      })
+    });
+
+    console.log('Response status:', response.status);
+    const data = await response.json();
+    console.log('Response data:', data);
+
+    if (!response.ok) {
+      throw new Error(data.message || `HTTP error! status: ${response.status}`);
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Create classroom failed:', error);
+    if (error.message === 'Network request failed') {
+      throw new Error('Cannot connect to server. Please check your internet connection and ensure the backend server is running.');
+    }
+    throw new Error(error.message || 'Failed to create classroom. Please try again.');
+  }
+};
+
+export const getAllClassrooms = async () => {
+  try {
+    console.log('Fetching all classrooms:', `${API_BASE_URL}/classrooms`);
+    const token = await getAuthToken();
+    
+    const response = await fetch(`${API_BASE_URL}/classrooms`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    console.log('Response status:', response.status);
+    const data = await response.json();
+    console.log('Response data:', data);
+
+    if (!response.ok) {
+      throw new Error(data.message || `HTTP error! status: ${response.status}`);
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Get classrooms failed:', error);
+    if (error.message === 'Network request failed') {
+      throw new Error('Cannot connect to server. Please check your internet connection and ensure the backend server is running.');
+    }
+    throw new Error(error.message || 'Failed to fetch classrooms. Please try again.');
+  }
+};
+
 // Mock function for AI grading - replace with actual API call
 export const gradeHomeworkWithAI = async (fileData) => {
   try {
