@@ -31,12 +31,8 @@ export default function SignupScreen({ navigation }) {
     setIsLoading(true);
     try {
       await signup(email, password, name, role);
-      Alert.alert('Success', 'Account created successfully!', [
-        {
-          text: 'OK',
-          onPress: () => navigation.navigate('Dashboard')
-        }
-      ]);
+      Alert.alert('Success', 'Account created successfully!');
+      // Navigation will be handled automatically by App.js based on user state
     } catch (error) {
       Alert.alert('Error', error.message || 'Failed to create account. Please try again.');
     } finally {
