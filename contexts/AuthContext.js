@@ -204,7 +204,10 @@ export const AuthProvider = ({ children }) => {
   const fetchClassrooms = async () => {
     setLoading(true);
     try {
+      console.log('AuthContext: Fetching classrooms for user:', user?.name);
       const response = await getAllClassrooms();
+      console.log('AuthContext: Raw API response:', response);
+      
       // Transform API response to match local state structure
       const transformedClassrooms = response.classrooms?.map(classroom => ({
         id: classroom.id,
@@ -216,6 +219,7 @@ export const AuthProvider = ({ children }) => {
         updated_at: classroom.updated_at
       })) || [];
       
+      console.log('AuthContext: Transformed classrooms:', transformedClassrooms);
       setClassrooms(transformedClassrooms);
       return transformedClassrooms;
     } catch (error) {

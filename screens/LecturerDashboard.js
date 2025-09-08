@@ -1,11 +1,29 @@
-import React, { useState, useContext } from 'react';
-import { View, Text, TouchableOpacity, FlatList, StyleSheet, Alert } from 'react-native';
+import React, { useState, useContext, useEffect } from 'react';
+import { View, Text, TouchableOpacity, FlatList, StyleSheet, Alert, RefreshControl } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import ClassroomCard from '../components/ClassroomCard';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function LecturerDashboard({ navigation }) {
-  const { user, classrooms, assignments, logout, deleteClassroom } = useAuth();
+  const { user, classrooms, assignments, logout, deleteClassroom, fetchClassrooms, loading } = useAuth();
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Fetch classrooms when component mounts
+  useEffect(() => {
+    const loadClassrooms = async () => {
+      if (user && user.role === 'lecturer') {
+        try {
+          console.log('LecturerDashboard: Fetching classrooms for user:', user.name);
+          await fetchClassrooms();
+        } catch (error) {
+          console.error('Failed to fetch classrooms:', error);
+          Alert.alert('Error', 'Failed to load classrooms. Please try again.');
+        }
+      }
+    };
+
+    loadClassrooms();
+  }, [user]); // Re-run when user changes
 
   const handleLogout = () => {
     Alert.alert(
@@ -30,6 +48,19 @@ export default function LecturerDashboard({ navigation }) {
 
   const navigateToProfile = () => {
     navigation.navigate('Profile');
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      console.log('LecturerDashboard: Refreshing classrooms...');
+      await fetchClassrooms();
+    } catch (error) {
+      console.error('Failed to refresh classrooms:', error);
+      Alert.alert('Error', 'Failed to refresh classrooms. Please try again.');
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const handleDeleteClassroom = (classroomId) => {
@@ -88,9 +119,18 @@ export default function LecturerDashboard({ navigation }) {
           data={classrooms}
           renderItem={renderClassroom}
           keyExtractor={item => item.id}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#4a90e2"
+            />
+          }
         />
       ) : (
-        <Text style={styles.noClassesText}>You haven't created any classrooms yet. Create your first classroom to get started!</Text>
+        <Text style={styles.noClassesText}>
+          {loading ? 'Loading classrooms...' : "You haven't created any classrooms yet. Create your first classroom to get started!"}
+        </Text>
       )}
     </View>
   );

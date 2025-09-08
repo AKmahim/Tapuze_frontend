@@ -165,6 +165,7 @@ export const getAllClassrooms = async () => {
   try {
     console.log('Fetching all classrooms:', `${API_BASE_URL}/classrooms`);
     const token = await getAuthToken();
+    console.log('Token being used:', token ? `${token.substring(0, 20)}...` : 'No token found');
     
     const response = await fetch(`${API_BASE_URL}/classrooms`, {
       method: 'GET',
