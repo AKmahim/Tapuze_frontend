@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
-import { signupLecturer, signupStudent, signinLecturer, signinStudent, createClassroom, getAllClassrooms } from '../services/apiService';
+import { signupLecturer, signupStudent, signinLecturer, signinStudent, createClassroom, getAllClassrooms, createAssignment, getAllAssignments } from '../services/apiService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const AuthContext = createContext();
@@ -237,13 +237,77 @@ export const AuthProvider = ({ children }) => {
     setSubmissions(prev => prev.filter(submission => submission.classroomId !== classroomId));
   };
 
-  const addAssignment = (newAssignment) => {
-    const assignmentWithId = {
-      ...newAssignment,
-      id: generateUniqueId(),
-      submissions: 0 // Initialize submission count
-    };
-    setAssignments(prev => [...prev, assignmentWithId]);
+  const addAssignment = async (newAssignment) => {
+    setLoading(true);
+    try {
+      console.log('AuthContext: Creating assignment with data:', newAssignment);
+      
+      // Call the real API to create assignment
+      const response = await createAssignment(
+        newAssignment.classroomId,
+        newAssignment.title,
+        newAssignment.description || '',
+        newAssignment.dueDate
+      );
+
+      console.log('AuthContext: Received assignment response:', response);
+
+      // Add the assignment from API response to local state
+      const assignmentWithId = {
+        id: response.assignment?.id || generateUniqueId(),
+        title: response.assignment?.assignment_title || newAssignment.title,
+        description: response.assignment?.assignment_details || newAssignment.description,
+        dueDate: response.assignment?.due_date || newAssignment.dueDate,
+        classroomId: newAssignment.classroomId,
+        submissions: 0, // Initialize submission count
+        ...response.assignment
+      };
+      
+      console.log('AuthContext: Adding assignment to local state:', assignmentWithId);
+      setAssignments(prev => [...prev, assignmentWithId]);
+      return assignmentWithId;
+    } catch (error) {
+      console.error('Add assignment error:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAssignments = async (classroomId) => {
+    setLoading(true);
+    try {
+      console.log('AuthContext: Fetching assignments for classroom:', classroomId);
+      const response = await getAllAssignments(classroomId);
+      console.log('AuthContext: Raw assignment API response:', response);
+      
+      // Transform API response to match local state structure
+      const transformedAssignments = response.assignments?.map(assignment => ({
+        id: assignment.id,
+        title: assignment.assignment_title,
+        description: assignment.assignment_details,
+        dueDate: assignment.due_date,
+        classroomId: classroomId,
+        submissions: assignment.submission_count || 0,
+        created_at: assignment.created_at,
+        updated_at: assignment.updated_at
+      })) || [];
+      
+      console.log('AuthContext: Transformed assignments:', transformedAssignments);
+      
+      // Update assignments in state (replace assignments for this classroom)
+      setAssignments(prev => {
+        const otherAssignments = prev.filter(a => a.classroomId !== classroomId);
+        return [...otherAssignments, ...transformedAssignments];
+      });
+      
+      return transformedAssignments;
+    } catch (error) {
+      console.error('Fetch assignments error:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const deleteAssignment = (assignmentId) => {
@@ -308,6 +372,7 @@ export const AuthProvider = ({ children }) => {
       fetchClassrooms,
       deleteClassroom,
       addAssignment,
+      fetchAssignments,
       deleteAssignment,
       addSubmission,
       getSubmissionsForAssignment,

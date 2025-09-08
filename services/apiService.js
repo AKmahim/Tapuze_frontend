@@ -294,6 +294,80 @@ const getAuthToken = async () => {
   }
 };
 
+// Assignment Management API functions
+export const createAssignment = async (classroomId, assignmentTitle, assignmentDetails, dueDate) => {
+  try {
+    console.log('Attempting to create assignment:', `${API_BASE_URL}/classrooms/${classroomId}/assignments`);
+    const token = await getAuthToken();
+    console.log('Token being used:', token ? `${token.substring(0, 20)}...` : 'No token found');
+    console.log('Request payload:', { 
+      assignment_title: assignmentTitle, 
+      assignment_details: assignmentDetails, 
+      due_date: dueDate 
+    });
+    
+    const response = await fetch(`${API_BASE_URL}/classrooms/${classroomId}/assignments`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        assignment_title: assignmentTitle,
+        assignment_details: assignmentDetails,
+        due_date: dueDate
+      })
+    });
+
+    console.log('Response status:', response.status);
+    const data = await response.json();
+    console.log('Response data:', data);
+
+    if (!response.ok) {
+      throw new Error(data.message || `HTTP error! status: ${response.status}`);
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Create assignment failed:', error);
+    if (error.message === 'Network request failed') {
+      throw new Error('Cannot connect to server. Please check your internet connection and ensure the backend server is running.');
+    }
+    throw new Error(error.message || 'Failed to create assignment. Please try again.');
+  }
+};
+
+export const getAllAssignments = async (classroomId) => {
+  try {
+    console.log('Fetching all assignments for classroom:', `${API_BASE_URL}/classrooms/${classroomId}/assignments`);
+    const token = await getAuthToken();
+    console.log('Token being used:', token ? `${token.substring(0, 20)}...` : 'No token found');
+    
+    const response = await fetch(`${API_BASE_URL}/classrooms/${classroomId}/assignments`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    console.log('Response status:', response.status);
+    const data = await response.json();
+    console.log('Response data:', data);
+
+    if (!response.ok) {
+      throw new Error(data.message || `HTTP error! status: ${response.status}`);
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Get assignments failed:', error);
+    if (error.message === 'Network request failed') {
+      throw new Error('Cannot connect to server. Please check your internet connection and ensure the backend server is running.');
+    }
+    throw new Error(error.message || 'Failed to fetch assignments. Please try again.');
+  }
+};
+
 // Additional API functions you might need:
 
 export const getSubmissions = async (classroomId, assignmentId) => {

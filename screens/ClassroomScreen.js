@@ -1,14 +1,45 @@
-import React, { useContext, useState } from 'react';
-import { View, Text, TouchableOpacity, FlatList, StyleSheet } from 'react-native';
+import React, { useContext, useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, FlatList, StyleSheet, Alert, RefreshControl } from 'react-native';
 import AssignmentCard from '../components/AssignmentCard';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function ClassroomScreen({ navigation, route }) {
   const { classroom } = route.params;
-  const { user, assignments, submissions, addAssignment, deleteAssignment, getSubmissionsForAssignment } = useAuth();
+  const { user, assignments, submissions, addAssignment, deleteAssignment, getSubmissionsForAssignment, fetchAssignments, loading } = useAuth();
+  const [refreshing, setRefreshing] = useState(false);
   
   // Get assignments for this classroom
   const classroomAssignments = assignments.filter(a => a.classroomId === classroom.id);
+
+  // Fetch assignments when component mounts or when classroom changes
+  useEffect(() => {
+    const loadAssignments = async () => {
+      if (classroom.id) {
+        try {
+          console.log('ClassroomScreen: Fetching assignments for classroom:', classroom.name);
+          await fetchAssignments(classroom.id);
+        } catch (error) {
+          console.error('Failed to fetch assignments:', error);
+          Alert.alert('Error', 'Failed to load assignments. Please try again.');
+        }
+      }
+    };
+
+    loadAssignments();
+  }, [classroom.id]); // Re-run when classroom ID changes
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      console.log('ClassroomScreen: Refreshing assignments...');
+      await fetchAssignments(classroom.id);
+    } catch (error) {
+      console.error('Failed to refresh assignments:', error);
+      Alert.alert('Error', 'Failed to refresh assignments. Please try again.');
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   // For students: get their submission status for each assignment
   const assignmentsWithStudentStatus = classroomAssignments.map(assignment => {
@@ -30,16 +61,21 @@ export default function ClassroomScreen({ navigation, route }) {
     return assignment;
   });
 
-  const handleNewAssignment = (newAssignment) => {
-    const assignmentWithClassroom = {
-      ...newAssignment,
-      classroomId: classroom.id,
-      classroomName: classroom.name,
-      totalStudents: 25 // Default value
-    };
-    
-    // Add to global assignments
-    addAssignment(assignmentWithClassroom);
+  const handleNewAssignment = async (newAssignment) => {
+    try {
+      const assignmentWithClassroom = {
+        ...newAssignment,
+        classroomId: classroom.id,
+        classroomName: classroom.name
+      };
+      
+      // Add to global assignments using API
+      await addAssignment(assignmentWithClassroom);
+      console.log('ClassroomScreen: Assignment created successfully');
+    } catch (error) {
+      console.error('Failed to create assignment:', error);
+      Alert.alert('Error', 'Failed to create assignment. Please try again.');
+    }
   };
 
   const handleDeleteAssignment = (assignmentId) => {
@@ -102,12 +138,19 @@ export default function ClassroomScreen({ navigation, route }) {
           data={assignmentsWithStudentStatus}
           renderItem={renderAssignment}
           keyExtractor={item => item.id}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#4a90e2"
+            />
+          }
         />
       ) : (
         <Text style={styles.noAssignmentsText}>
-          {user.role === 'lecturer' 
+          {loading ? 'Loading assignments...' : (user.role === 'lecturer' 
             ? 'No assignments yet. Create your first assignment!' 
-            : 'No assignments available yet.'}
+            : 'No assignments available yet.')}
         </Text>
       )}
     </View>

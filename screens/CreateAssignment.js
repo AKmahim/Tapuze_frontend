@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -9,26 +9,37 @@ export default function CreateAssignment({ navigation, route }) {
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
   const { addAssignment } = useAuth();
 
-  const handleCreateAssignment = () => {
-    if (title.trim()) {
+  const handleCreateAssignment = async () => {
+    if (!title.trim()) {
+      Alert.alert('Error', 'Please enter an assignment title');
+      return;
+    }
+
+    setIsCreating(true);
+    try {
       const newAssignment = {
-        title,
-        description,
-        dueDate: dueDate.toISOString().split('T')[0],
-        submissions: 0,
-        totalStudents: 25, // Default value for demo
+        title: title.trim(),
+        description: description.trim(),
+        dueDate: dueDate.toISOString(),
         classroomId: classroom.id
       };
       
-      // Add to global assignments (they will generate unique ID)
-      addAssignment(newAssignment);
+      console.log('CreateAssignment: Creating assignment:', newAssignment);
       
-      Alert.alert('Success', `Assignment "${title}" created for ${classroom.name}`);
-      navigation.goBack();
-    } else {
-      Alert.alert('Error', 'Please enter an assignment title');
+      // Add assignment using API
+      await addAssignment(newAssignment);
+      
+      Alert.alert('Success', `Assignment "${title}" created for ${classroom.name}`, [
+        { text: 'OK', onPress: () => navigation.goBack() }
+      ]);
+    } catch (error) {
+      console.error('Failed to create assignment:', error);
+      Alert.alert('Error', error.message || 'Failed to create assignment. Please try again.');
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -86,11 +97,15 @@ export default function CreateAssignment({ navigation, route }) {
       )}
       
       <TouchableOpacity 
-        style={[styles.createButton, !title.trim() && styles.disabledButton]}
+        style={[styles.createButton, (!title.trim() || isCreating) && styles.disabledButton]}
         onPress={handleCreateAssignment}
-        disabled={!title.trim()}
+        disabled={!title.trim() || isCreating}
       >
-        <Text style={styles.createButtonText}>Create Assignment</Text>
+        {isCreating ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.createButtonText}>Create Assignment</Text>
+        )}
       </TouchableOpacity>
     </View>
   );
