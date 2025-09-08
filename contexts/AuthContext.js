@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState } from 'react';
+import { signupLecturer, signupStudent, signinLecturer, signinStudent } from '../services/apiService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const AuthContext = createContext();
 
@@ -12,8 +14,9 @@ export const AuthProvider = ({ children }) => {
   const [classrooms, setClassrooms] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [submissions, setSubmissions] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  // Generate unique IDs
+  // Generate unique IDs for local data
   const generateUniqueId = () => {
     return `id_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   };
@@ -26,50 +29,126 @@ export const AuthProvider = ({ children }) => {
     return `L${Math.floor(1000 + Math.random() * 9000)}`;
   };
 
-  const signup = (email, password, name, role, additionalData = {}) => {
-    // Check if user already exists
-    if (users.find(u => u.email === email)) {
-      throw new Error('User already exists with this email');
+  // Store auth token
+  const storeAuthToken = async (token) => {
+    try {
+      await AsyncStorage.setItem('authToken', token);
+    } catch (error) {
+      console.error('Error storing auth token:', error);
     }
-
-    const uniqueId = role === 'student' ? generateStudentId() : generateLecturerId();
-
-    const newUser = {
-      id: generateUniqueId(),
-      userId: uniqueId,
-      email,
-      name,
-      role,
-      joinedClassrooms: [],
-      avatar: null,
-      bio: '',
-      department: role === 'lecturer' ? '' : undefined,
-      phone: '',
-      ...additionalData
-    };
-
-    setUsers(prev => [...prev, newUser]);
-    setUser(newUser);
-    return newUser;
   };
 
-  const login = (email, password, role) => {
-    // In a real app, this would verify credentials with a backend
-    const foundUser = users.find(u => u.email === email) || {
-      id: generateUniqueId(),
-      userId: role === 'student' ? generateStudentId() : generateLecturerId(),
-      email,
-      name: role === 'student' ? 'Student User' : 'Lecturer User',
-      role,
-      joinedClassrooms: [],
-    };
-
-    setUser(foundUser);
-    return foundUser;
+  // Get auth token
+  const getAuthToken = async () => {
+    try {
+      return await AsyncStorage.getItem('authToken');
+    } catch (error) {
+      console.error('Error retrieving auth token:', error);
+      return null;
+    }
   };
 
-  const logout = () => {
-    setUser(null);
+  // Remove auth token
+  const removeAuthToken = async () => {
+    try {
+      await AsyncStorage.removeItem('authToken');
+    } catch (error) {
+      console.error('Error removing auth token:', error);
+    }
+  };
+
+  const signup = async (email, password, name, role, additionalData = {}) => {
+    setLoading(true);
+    try {
+      let response;
+      
+      if (role === 'lecturer') {
+        response = await signupLecturer(name, email, password);
+      } else if (role === 'student') {
+        response = await signupStudent(name, email, password);
+      } else {
+        throw new Error('Invalid role specified');
+      }
+
+      // Store the auth token if provided in response
+      if (response.token) {
+        await storeAuthToken(response.token);
+      }
+
+      // Create user object from response
+      const userData = {
+        id: response.lecturer?.id || response.student?.id,
+        userId: response.lecturer?.id || response.student?.id,
+        email: response.lecturer?.email || response.student?.email,
+        name: response.lecturer?.name || response.student?.name,
+        role: role,
+        joinedClassrooms: [],
+        avatar: null,
+        bio: '',
+        department: role === 'lecturer' ? '' : undefined,
+        phone: '',
+        ...additionalData
+      };
+
+      setUser(userData);
+      return userData;
+    } catch (error) {
+      console.error('Signup error:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const login = async (email, password, role) => {
+    setLoading(true);
+    try {
+      let response;
+      
+      if (role === 'lecturer') {
+        response = await signinLecturer(email, password);
+      } else if (role === 'student') {
+        response = await signinStudent(email, password);
+      } else {
+        throw new Error('Invalid role specified');
+      }
+
+      // Store the auth token
+      if (response.token) {
+        await storeAuthToken(response.token);
+      }
+
+      // Create user object from response
+      const userData = {
+        id: response.lecturer?.id || response.student?.id,
+        userId: response.lecturer?.id || response.student?.id,
+        email: response.lecturer?.email || response.student?.email,
+        name: response.lecturer?.name || response.student?.name,
+        role: role,
+        joinedClassrooms: [],
+        avatar: null,
+        bio: '',
+        department: role === 'lecturer' ? '' : undefined,
+        phone: ''
+      };
+
+      setUser(userData);
+      return userData;
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await removeAuthToken();
+      setUser(null);
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   const joinClassroom = (classroomCode) => {
@@ -182,6 +261,7 @@ export const AuthProvider = ({ children }) => {
       classrooms,
       assignments,
       submissions,
+      loading,
       signup,
       login,
       logout,
@@ -193,7 +273,8 @@ export const AuthProvider = ({ children }) => {
       addSubmission,
       getSubmissionsForAssignment,
       updateSubmissionWithEvaluation,
-      getSubmissionEvaluation
+      getSubmissionEvaluation,
+      getAuthToken
     }}>
       {children}
     </AuthContext.Provider>

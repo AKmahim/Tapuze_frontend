@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function SignupScreen({ navigation }) {
@@ -7,19 +7,40 @@ export default function SignupScreen({ navigation }) {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [role, setRole] = useState('student');
+  const [isLoading, setIsLoading] = useState(false);
   const { signup } = useAuth();
 
-  const handleSignup = () => {
+  const handleSignup = async () => {
     if (!email || !password || !name) {
       Alert.alert('Error', 'Please fill all fields');
       return;
     }
 
+    if (password.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters long');
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      Alert.alert('Error', 'Please enter a valid email address');
+      return;
+    }
+
+    setIsLoading(true);
     try {
-      signup(email, password, name, role);
-      Alert.alert('Success', 'Account created successfully!');
+      await signup(email, password, name, role);
+      Alert.alert('Success', 'Account created successfully!', [
+        {
+          text: 'OK',
+          onPress: () => navigation.navigate('Dashboard')
+        }
+      ]);
     } catch (error) {
-      Alert.alert('Error', error.message);
+      Alert.alert('Error', error.message || 'Failed to create account. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -70,8 +91,16 @@ export default function SignupScreen({ navigation }) {
           secureTextEntry
         />
         
-        <TouchableOpacity style={styles.signupButton} onPress={handleSignup}>
-          <Text style={styles.signupButtonText}>Sign Up</Text>
+        <TouchableOpacity 
+          style={[styles.signupButton, isLoading && styles.disabledButton]} 
+          onPress={handleSignup}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.signupButtonText}>Sign Up</Text>
+          )}
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -139,6 +168,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  disabledButton: {
+    backgroundColor: '#a0a0a0',
   },
   loginLink: {
     textAlign: 'center',

@@ -1,16 +1,35 @@
-import React, { useState, useContext } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function AuthScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('student');
+  const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
 
-  const handleLogin = () => {
-    if (email && password) {
-      login(email, password, role);
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please fill all fields');
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      Alert.alert('Error', 'Please enter a valid email address');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await login(email, password, role);
+      // Navigation will be handled by the app when user state changes
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Failed to sign in. Please check your credentials.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -54,15 +73,21 @@ export default function AuthScreen({ navigation }) {
           secureTextEntry
         />
         
-        <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-          <Text style={styles.loginButtonText}>Login</Text>
+        <TouchableOpacity 
+          style={[styles.loginButton, isLoading && styles.disabledButton]} 
+          onPress={handleLogin}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.loginButtonText}>Login</Text>
+          )}
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
           <Text style={styles.signupLink}>Don't have an account? Sign Up</Text>
         </TouchableOpacity>
-
-        <Text style={styles.demoText}>Demo: Any email/password will work</Text>
       </View>
     </KeyboardAvoidingView>
   );
@@ -126,16 +151,13 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
+  disabledButton: {
+    backgroundColor: '#a0a0a0',
+  },
   signupLink: {
     textAlign: 'center',
     marginTop: 20,
     color: '#4a90e2',
     textDecorationLine: 'underline',
-  },
-  demoText: {
-    textAlign: 'center',
-    marginTop: 20,
-    color: '#666',
-    fontStyle: 'italic',
   },
 });

@@ -1,6 +1,126 @@
 // API Service for handling backend communication
+import CONFIG from '../config/api';
 
-const API_BASE_URL = 'http://localhost:3000/api'; // Replace with your actual API URL
+const API_BASE_URL = CONFIG.API_BASE_URL;
+
+// Authentication API functions
+export const signupLecturer = async (name, email, password) => {
+  try {
+    console.log('Attempting lecturer signup to:', `${API_BASE_URL}/lecturers/signup`);
+    const response = await fetch(`${API_BASE_URL}/lecturers/signup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name,
+        email,
+        password
+      })
+    });
+
+    console.log('Response status:', response.status);
+    const data = await response.json();
+    console.log('Response data:', data);
+
+    if (!response.ok) {
+      throw new Error(data.message || `HTTP error! status: ${response.status}`);
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Lecturer signup failed:', error);
+    if (error.message === 'Network request failed') {
+      throw new Error('Cannot connect to server. Please check your internet connection and ensure the backend server is running.');
+    }
+    throw new Error(error.message || 'Failed to create lecturer account. Please try again.');
+  }
+};
+
+export const signupStudent = async (name, email, password) => {
+  try {
+    console.log('Attempting student signup to:', `${API_BASE_URL}/students/signup`);
+    const response = await fetch(`${API_BASE_URL}/students/signup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name,
+        email,
+        password
+      })
+    });
+
+    console.log('Response status:', response.status);
+    const data = await response.json();
+    console.log('Response data:', data);
+
+    if (!response.ok) {
+      throw new Error(data.message || `HTTP error! status: ${response.status}`);
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Student signup failed:', error);
+    if (error.message === 'Network request failed') {
+      throw new Error('Cannot connect to server. Please check your internet connection and ensure the backend server is running.');
+    }
+    throw new Error(error.message || 'Failed to create student account. Please try again.');
+  }
+};
+
+export const signinLecturer = async (email, password) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/lecturers/signin`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email,
+        password
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || `HTTP error! status: ${response.status}`);
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Lecturer signin failed:', error);
+    throw new Error(error.message || 'Failed to sign in. Please check your credentials.');
+  }
+};
+
+export const signinStudent = async (email, password) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/students/signin`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email,
+        password
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || `HTTP error! status: ${response.status}`);
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Student signin failed:', error);
+    throw new Error(error.message || 'Failed to sign in. Please check your credentials.');
+  }
+};
 
 // Mock function for AI grading - replace with actual API call
 export const gradeHomeworkWithAI = async (fileData) => {
@@ -70,13 +190,13 @@ export const updateSubmissionEvaluation = async (classroomId, assignmentId, subm
     // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 1000));
     
+    const token = await getAuthToken();
     // Mock API call - replace with actual implementation
     const response = await fetch(`${API_BASE_URL}/classrooms/${classroomId}/assignments/${assignmentId}/submissions/${submissionId}/evaluation`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        // Add authentication headers if needed
-        // 'Authorization': `Bearer ${getAuthToken()}`
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify(evaluation)
     });
@@ -94,18 +214,24 @@ export const updateSubmissionEvaluation = async (classroomId, assignmentId, subm
 };
 
 // Helper function to get auth token (implement based on your auth system)
-const getAuthToken = () => {
-  // Replace with your actual token retrieval logic
-  return localStorage.getItem('authToken') || '';
+const getAuthToken = async () => {
+  try {
+    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+    return await AsyncStorage.getItem('authToken');
+  } catch (error) {
+    console.error('Error retrieving auth token:', error);
+    return null;
+  }
 };
 
 // Additional API functions you might need:
 
 export const getSubmissions = async (classroomId, assignmentId) => {
   try {
+    const token = await getAuthToken();
     const response = await fetch(`${API_BASE_URL}/classrooms/${classroomId}/assignments/${assignmentId}/submissions`, {
       headers: {
-        'Authorization': `Bearer ${getAuthToken()}`
+        'Authorization': `Bearer ${token}`
       }
     });
     
@@ -122,9 +248,10 @@ export const getSubmissions = async (classroomId, assignmentId) => {
 
 export const getAssignment = async (classroomId, assignmentId) => {
   try {
+    const token = await getAuthToken();
     const response = await fetch(`${API_BASE_URL}/classrooms/${classroomId}/assignments/${assignmentId}`, {
       headers: {
-        'Authorization': `Bearer ${getAuthToken()}`
+        'Authorization': `Bearer ${token}`
       }
     });
     
@@ -141,9 +268,10 @@ export const getAssignment = async (classroomId, assignmentId) => {
 
 export const getClassroom = async (classroomId) => {
   try {
+    const token = await getAuthToken();
     const response = await fetch(`${API_BASE_URL}/classrooms/${classroomId}`, {
       headers: {
-        'Authorization': `Bearer ${getAuthToken()}`
+        'Authorization': `Bearer ${token}`
       }
     });
     
