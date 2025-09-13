@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { Platform, BackHandler, Alert } from 'react-native';
+import { gestureHandlerRootHOC } from 'react-native-gesture-handler';
 import AuthScreen from './screens/AuthScreen';
 import SignupScreen from './screens/SignupScreen';
 import StudentDashboard from './screens/StudentDashboard';
@@ -16,18 +18,44 @@ import AIEvaluationScreen from './screens/AIEvaluationScreen';
 import EvaluationScreen from './screens/EvaluationScreen';
 import DemoEvaluationScreen from './screens/DemoEvaluationScreen';
 import ProfileScreen from './screens/ProfileScreen';
+import { handleAndroidBackPress, getScreenOptions } from './utils/navigationHelpers';
 
 const Stack = createNativeStackNavigator();
 
 function AppNavigator() {
   const { user } = useAuth();
+  const navigationRef = React.useRef(null);
+
+  useEffect(() => {
+    // Use our helper function to handle Android back press
+    const cleanupBackHandler = handleAndroidBackPress(navigationRef);
+    return cleanupBackHandler;
+  }, []);
+
+  // Get base screen options for gesture support
+  const baseScreenOptions = {
+    headerBackTitle: 'Back', // For iOS
+    gestureEnabled: true,
+    gestureDirection: 'horizontal',
+    ...(Platform.OS === 'android' && {
+      animation: 'slide_from_right',
+      gestureResponseDistance: {
+        horizontal: 50,
+      },
+    }),
+  };
 
   return (
-    <Stack.Navigator
+    <NavigationContainer 
+      ref={navigationRef}
       screenOptions={{
-        headerBackTitle: 'Back', // For iOS
+        gestureEnabled: true,
+        gestureDirection: 'horizontal',
       }}
     >
+      <Stack.Navigator
+        screenOptions={baseScreenOptions}
+      >
       {user ? (
         user.role === 'student' ? (
           <>
@@ -125,17 +153,17 @@ function AppNavigator() {
             options={{ title: 'Sign Up' }}
           />
         </>
-      )}
-    </Stack.Navigator>
+        )}
+      </Stack.Navigator>
+    </NavigationContainer>
   );
-}
-
-export default function App() {
+}function App() {
   return (
     <AuthProvider>
-      <NavigationContainer>
-        <AppNavigator />
-      </NavigationContainer>
+      <AppNavigator />
     </AuthProvider>
   );
 }
+
+// Wrap the entire app with gesture handler for better gesture support
+export default gestureHandlerRootHOC(App);

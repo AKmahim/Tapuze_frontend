@@ -22,11 +22,16 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "jsEngine": "hermes"
+      "jsEngine": "hermes",
+      "navigationBarColor": "#ffffff",
+      "statusBarBackgroundColor": "#ffffff",
+      "statusBarStyle": "dark-content"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": []
+    "plugins": [
+      "expo-screen-orientation"
+    ]
   }
 }
