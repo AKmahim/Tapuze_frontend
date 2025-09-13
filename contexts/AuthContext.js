@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
-import { signupLecturer, signupStudent, signinLecturer, signinStudent, createClassroom, getAllClassrooms, createAssignment, getAllAssignments } from '../services/apiService';
+import { signupLecturer, signupStudent, signinLecturer, signinStudent, createClassroom, getAllClassrooms, createAssignment, getAllAssignments, getClassroomByCode } from '../services/apiService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const AuthContext = createContext();
@@ -151,18 +151,61 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const joinClassroom = (classroomCode) => {
-    if (user && !user.joinedClassrooms.includes(classroomCode)) {
-      const updatedUser = {
-        ...user,
-        joinedClassrooms: [...user.joinedClassrooms, classroomCode]
-      };
-      setUser(updatedUser);
+  const joinClassroom = async (classroomCode) => {
+    setLoading(true);
+    try {
+      console.log('AuthContext: Attempting to join classroom with code:', classroomCode);
+      
+      // First, fetch the classroom by code to validate it exists
+      const response = await getClassroomByCode(classroomCode);
+      console.log('AuthContext: Received classroom response:', response);
 
-      // Update in users array
-      setUsers(prev => prev.map(u =>
-        u.id === user.id ? updatedUser : u
-      ));
+      if (!response.classroom) {
+        throw new Error('Classroom not found');
+      }
+
+      // Transform API response to match local state structure
+      const classroom = {
+        id: response.classroom.id,
+        name: response.classroom.class_name,
+        code: response.classroom.classroom_code,
+        description: response.classroom.class_details,
+        studentCount: response.classroom.student_count || 0,
+        lecturer: response.classroom.lecturer_name || 'Unknown',
+        created_at: response.classroom.created_at,
+        updated_at: response.classroom.updated_at
+      };
+
+      // Add classroom to local classrooms state if not already present
+      setClassrooms(prev => {
+        const existingClassroom = prev.find(c => c.id === classroom.id);
+        if (existingClassroom) {
+          return prev; // Already exists, no need to add
+        }
+        return [...prev, classroom];
+      });
+
+      // Update user's joined classrooms if not already joined
+      if (user && !user.joinedClassrooms.includes(classroomCode)) {
+        const updatedUser = {
+          ...user,
+          joinedClassrooms: [...user.joinedClassrooms, classroomCode]
+        };
+        setUser(updatedUser);
+
+        // Update in users array
+        setUsers(prev => prev.map(u =>
+          u.id === user.id ? updatedUser : u
+        ));
+      }
+
+      console.log('AuthContext: Successfully joined classroom:', classroom);
+      return classroom;
+    } catch (error) {
+      console.error('Join classroom error:', error);
+      throw error;
+    } finally {
+      setLoading(false);
     }
   };
 

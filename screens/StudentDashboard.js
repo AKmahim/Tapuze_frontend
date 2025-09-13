@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 export default function StudentDashboard({ navigation }) {
   const [joinCode, setJoinCode] = useState('');
-  const { user, classrooms, joinClassroom, logout, submissions } = useAuth();
+  const { user, classrooms, joinClassroom, logout, submissions, loading } = useAuth();
 
   // Get classrooms that the student has joined
   const studentClassrooms = classrooms.filter(classroom => 
@@ -40,18 +40,15 @@ export default function StudentDashboard({ navigation }) {
     };
   });
 
-  const handleJoinClassroom = () => {
+  const handleJoinClassroom = async () => {
     if (joinCode.trim()) {
-      // Check if classroom exists
-      const classroomExists = classrooms.some(c => c.code === joinCode);
-      
-      if (classroomExists) {
-        joinClassroom(joinCode);
-        Alert.alert('Success', `Joined classroom with code: ${joinCode}`);
-      } else {
-        Alert.alert('Error', `No classroom found with code: ${joinCode}`);
+      try {
+        const classroom = await joinClassroom(joinCode);
+        Alert.alert('Success', `Successfully joined "${classroom.name}" with code: ${joinCode}`);
+        setJoinCode('');
+      } catch (error) {
+        Alert.alert('Error', error.message || 'Failed to join classroom. Please check the code and try again.');
       }
-      setJoinCode('');
     } else {
       Alert.alert('Error', 'Please enter a classroom code');
     }
@@ -140,8 +137,14 @@ export default function StudentDashboard({ navigation }) {
             <Text style={styles.pasteText}>Paste</Text>
           </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.joinButton} onPress={handleJoinClassroom}>
-          <Text style={styles.joinButtonText}>Join Classroom</Text>
+        <TouchableOpacity 
+          style={[styles.joinButton, loading && styles.disabledButton]} 
+          onPress={handleJoinClassroom}
+          disabled={loading}
+        >
+          <Text style={styles.joinButtonText}>
+            {loading ? 'Joining...' : 'Join Classroom'}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -215,6 +218,9 @@ const styles = StyleSheet.create({
   joinButtonText: {
     color: '#fff',
     fontWeight: 'bold',
+  },
+  disabledButton: {
+    backgroundColor: '#ccc',
   },
   sectionTitle: {
     fontSize: 18,
