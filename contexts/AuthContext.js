@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
-import { signupLecturer, signupStudent, signinLecturer, signinStudent, createClassroom, getAllClassrooms, createAssignment, getAllAssignments, getClassroomByCode } from '../services/apiService';
+import { signupLecturer, signupStudent, signinLecturer, signinStudent, createClassroom, getAllClassrooms, createAssignment, getAllAssignments, getClassroomByCode, getAssignmentsByClassroomCode } from '../services/apiService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const AuthContext = createContext();
@@ -353,6 +353,44 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const fetchAssignmentsByClassroomCode = async (classroomCode) => {
+    setLoading(true);
+    try {
+      console.log('AuthContext: Fetching assignments for classroom code:', classroomCode);
+      const response = await getAssignmentsByClassroomCode(classroomCode);
+      console.log('AuthContext: Raw assignment API response:', response);
+      
+      // Transform API response to match local state structure
+      const transformedAssignments = response.assignments?.map(assignment => ({
+        id: assignment.id,
+        title: assignment.assignment_title,
+        description: assignment.assignment_details,
+        dueDate: assignment.due_date,
+        classroomId: assignment.classroom_id,
+        classroomName: assignment.classroom?.class_name,
+        submissions: assignment.submission_count || 0,
+        created_at: assignment.created_at,
+        updated_at: assignment.updated_at,
+        lecturer: assignment.lecturer // Include lecturer information
+      })) || [];
+      
+      console.log('AuthContext: Transformed assignments:', transformedAssignments);
+      
+      // Update assignments in state (replace assignments for this classroom)
+      setAssignments(prev => {
+        const otherAssignments = prev.filter(a => a.classroomId !== transformedAssignments[0]?.classroomId);
+        return [...otherAssignments, ...transformedAssignments];
+      });
+      
+      return transformedAssignments;
+    } catch (error) {
+      console.error('Fetch assignments by classroom code error:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const deleteAssignment = (assignmentId) => {
     setAssignments(prev => prev.filter(assignment => assignment.id !== assignmentId));
     // Also delete all submissions for this assignment
@@ -416,6 +454,7 @@ export const AuthProvider = ({ children }) => {
       deleteClassroom,
       addAssignment,
       fetchAssignments,
+      fetchAssignmentsByClassroomCode,
       deleteAssignment,
       addSubmission,
       getSubmissionsForAssignment,

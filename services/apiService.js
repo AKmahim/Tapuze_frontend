@@ -460,3 +460,34 @@ export const getClassroomByCode = async (classroomCode) => {
     throw new Error(error.message || 'Failed to fetch classroom. Please try again.');
   }
 };
+
+export const getAssignmentsByClassroomCode = async (classroomCode) => {
+  try {
+    console.log('Fetching assignments by classroom code:', `${API_BASE_URL}/classrooms/code/${classroomCode}/assignments`);
+    const token = await getAuthToken();
+    console.log('Token being used:', token ? `${token.substring(0, 20)}...` : 'No token found');
+    
+    const response = await fetch(`${API_BASE_URL}/classrooms/code/${classroomCode}/assignments`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    console.log('Response status:', response.status);
+    const data = await response.json();
+    console.log('Response data:', data);
+
+    if (!response.ok) {
+      throw new Error(data.message || `HTTP error! status: ${response.status}`);
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Get assignments by classroom code failed:', error);
+    if (error.message === 'Network request failed') {
+      throw new Error('Cannot connect to server. Please check your internet connection and ensure the backend server is running.');
+    }
+    throw new Error(error.message || 'Failed to fetch assignments. Please try again.');
+  }
+};

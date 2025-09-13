@@ -5,19 +5,42 @@ import { useAuth } from '../contexts/AuthContext';
 
 export default function ClassroomScreen({ navigation, route }) {
   const { classroom } = route.params;
-  const { user, assignments, submissions, addAssignment, deleteAssignment, getSubmissionsForAssignment, fetchAssignments, loading } = useAuth();
+  const { user, assignments, submissions, addAssignment, deleteAssignment, getSubmissionsForAssignment, fetchAssignments, fetchAssignmentsByClassroomCode, loading } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   
+  // Debug logging
+  console.log('ClassroomScreen: Initialized with classroom:', classroom);
+  console.log('ClassroomScreen: User role:', user?.role);
+  console.log('ClassroomScreen: Classroom ID:', classroom?.id);
+  console.log('ClassroomScreen: Classroom Code:', classroom?.code);
+  
   // Get assignments for this classroom
-  const classroomAssignments = assignments.filter(a => a.classroomId === classroom.id);
+  const classroomAssignments = assignments.filter(a => {
+    // Filter by classroom ID (works for both lecturers and students)
+    // For students, the API returns assignments with classroom_id that matches the classroom
+    if (classroom.id) {
+      return a.classroomId === classroom.id;
+    }
+    // Fallback: if we only have classroom code, try to match by code
+    // This is less reliable, so we prefer the ID-based filtering above
+    return false;
+  });
 
   // Fetch assignments when component mounts or when classroom changes
   useEffect(() => {
     const loadAssignments = async () => {
-      if (classroom.id) {
+      if (classroom.id || classroom.code) {
         try {
           console.log('ClassroomScreen: Fetching assignments for classroom:', classroom.name);
-          await fetchAssignments(classroom.id);
+          
+          // Use different API endpoints based on user role
+          if (user.role === 'student' && classroom.code) {
+            // For students, use classroom code to fetch assignments
+            await fetchAssignmentsByClassroomCode(classroom.code);
+          } else if (user.role === 'lecturer' && classroom.id) {
+            // For lecturers, use classroom ID to fetch assignments
+            await fetchAssignments(classroom.id);
+          }
         } catch (error) {
           console.error('Failed to fetch assignments:', error);
           Alert.alert('Error', 'Failed to load assignments. Please try again.');
@@ -26,13 +49,21 @@ export default function ClassroomScreen({ navigation, route }) {
     };
 
     loadAssignments();
-  }, [classroom.id]); // Re-run when classroom ID changes
+  }, [classroom.id, classroom.code, user.role]); // Re-run when classroom ID/code or user role changes
 
   const onRefresh = async () => {
     setRefreshing(true);
     try {
       console.log('ClassroomScreen: Refreshing assignments...');
-      await fetchAssignments(classroom.id);
+      
+      // Use different API endpoints based on user role
+      if (user.role === 'student' && classroom.code) {
+        // For students, use classroom code to fetch assignments
+        await fetchAssignmentsByClassroomCode(classroom.code);
+      } else if (user.role === 'lecturer' && classroom.id) {
+        // For lecturers, use classroom ID to fetch assignments
+        await fetchAssignments(classroom.id);
+      }
     } catch (error) {
       console.error('Failed to refresh assignments:', error);
       Alert.alert('Error', 'Failed to refresh assignments. Please try again.');
