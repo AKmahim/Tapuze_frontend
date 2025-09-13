@@ -123,7 +123,7 @@ export default function StudentDashboard({ navigation }) {
     <View style={styles.container}>
       <Text style={styles.title}>Student Dashboard</Text>
       <Text style={styles.welcome}>Welcome, {user?.name}!</Text>
-      
+      {/* field for enter classroom code and join into classroom */}
       <View style={styles.joinSection}>
         <View style={styles.inputContainer}>
           <TextInput
