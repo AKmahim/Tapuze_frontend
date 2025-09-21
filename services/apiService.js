@@ -491,3 +491,49 @@ export const getAssignmentsByClassroomCode = async (classroomCode) => {
     throw new Error(error.message || 'Failed to fetch assignments. Please try again.');
   }
 };
+
+// Assignment Submission API function
+export const submitAssignment = async (classroomId, assignmentId, pdfFile, studentId) => {
+  try {
+    console.log('Submitting assignment:', `${API_BASE_URL}/classrooms/${classroomId}/assignments/${assignmentId}/submissions`);
+    console.log('Student ID:', studentId);
+    console.log('File details:', {
+      name: pdfFile.name,
+      uri: pdfFile.uri,
+      type: pdfFile.mimeType
+    });
+
+    // Create FormData for file upload
+    const formData = new FormData();
+    formData.append('pdfFile', {
+      uri: pdfFile.uri,
+      name: pdfFile.name,
+      type: pdfFile.mimeType
+    });
+    formData.append('studentId', studentId);
+
+    const response = await fetch(`${API_BASE_URL}/classrooms/${classroomId}/assignments/${assignmentId}/submissions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      body: formData
+    });
+
+    console.log('Response status:', response.status);
+    const data = await response.json();
+    console.log('Response data:', data);
+
+    if (!response.ok) {
+      throw new Error(data.message || `HTTP error! status: ${response.status}`);
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Submit assignment failed:', error);
+    if (error.message === 'Network request failed') {
+      throw new Error('Cannot connect to server. Please check your internet connection and ensure the backend server is running.');
+    }
+    throw new Error(error.message || 'Failed to submit assignment. Please try again.');
+  }
+};

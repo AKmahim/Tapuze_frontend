@@ -2,20 +2,18 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { useAuth } from '../contexts/AuthContext';
+import { submitAssignment } from '../services/apiService';
 
 export default function SubmitAssignment({ navigation, route }) {
   const { assignment, classroom } = route.params;
   const [files, setFiles] = useState([]);
-  const { user, addSubmission } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user } = useAuth();
 
   const pickDocuments = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: [
-          'application/pdf', 
-          'application/msword', 
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        ],
+        type: ['application/pdf'],
         copyToCacheDirectory: true,
         multiple: false,
       });
@@ -41,9 +39,9 @@ export default function SubmitAssignment({ navigation, route }) {
             name: selectedFile.name,
             size: selectedFile.size,
             uri: selectedFile.uri,
-            mimeType: selectedFile.mimeType || selectedFile.type
+            mimeType: selectedFile.mimeType || selectedFile.type || 'application/pdf'
           }]);
-          Alert.alert('Success', 'File selected successfully!');
+          Alert.alert('Success', 'PDF file selected successfully!');
         } else {
           console.log('No valid file found in result');
           Alert.alert('Error', 'No valid file selected');
@@ -59,30 +57,49 @@ export default function SubmitAssignment({ navigation, route }) {
 
   const handleSubmit = async () => {
     if (files.length === 0) {
-      Alert.alert('Error', 'Please select a file to submit');
+      Alert.alert('Error', 'Please select a PDF file to submit');
       return;
     }
 
-    try {
-      const submissionData = {
-        assignmentId: assignment.id,
-        classroomId: classroom.id,
-        assignmentName: assignment.title,
-        classroomName: classroom.name,
-        studentId: user.userId,
-        studentName: user.name,
-        files: files,
-        submittedAt: new Date().toISOString(),
-        status: 'submitted'
-      };
+    if (!files[0].mimeType.includes('pdf')) {
+      Alert.alert('Error', 'Please select a PDF file only');
+      return;
+    }
 
-      addSubmission(submissionData);
+    setIsSubmitting(true);
+
+    try {
+      console.log('Submitting assignment with data:', {
+        classroomId: classroom.id,
+        assignmentId: assignment.id,
+        studentId: user.userId,
+        fileName: files[0].name
+      });
+
+      const response = await submitAssignment(
+        classroom.id,
+        assignment.id,
+        files[0],
+        user.userId
+      );
+
+      console.log('Submission response:', response);
       
-      Alert.alert('Success', `Assignment "${assignment.title}" submitted successfully!`);
-      navigation.goBack();
+      Alert.alert(
+        'Success', 
+        `Assignment "${assignment.title}" submitted successfully!`,
+        [
+          {
+            text: 'OK',
+            onPress: () => navigation.goBack()
+          }
+        ]
+      );
     } catch (error) {
       console.error('Submission error:', error);
-      Alert.alert('Error', 'Failed to submit assignment: ' + error.message);
+      Alert.alert('Error', error.message || 'Failed to submit assignment. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -99,7 +116,7 @@ export default function SubmitAssignment({ navigation, route }) {
       
       <TouchableOpacity style={styles.uploadButton} onPress={pickDocuments}>
         <Text style={styles.uploadButtonText}>
-          {files.length > 0 ? 'Change Document' : 'Select Document'}
+          {files.length > 0 ? 'Change PDF' : 'Select PDF File'}
         </Text>
       </TouchableOpacity>
 
@@ -108,7 +125,7 @@ export default function SubmitAssignment({ navigation, route }) {
           <View style={styles.fileInfo}>
             <Text style={styles.fileName} numberOfLines={1}>{files[0].name}</Text>
             <Text style={styles.fileDetails}>
-              {files[0].mimeType || 'Document'} • {Math.round(files[0].size / 1024)} KB
+              {files[0].mimeType || 'PDF Document'} • {Math.round(files[0].size / 1024)} KB
             </Text>
           </View>
           <TouchableOpacity style={styles.removeButton} onPress={clearSelection}>
@@ -116,20 +133,24 @@ export default function SubmitAssignment({ navigation, route }) {
           </TouchableOpacity>
         </View>
       ) : (
-        <Text style={styles.noFileText}>No file selected</Text>
+        <Text style={styles.noFileText}>No PDF file selected</Text>
       )}
 
       <Text style={styles.supportedFormats}>
-        Supported formats: PDF, DOC, DOCX
+        Supported format: PDF only (max 10MB)
       </Text>
       
       <TouchableOpacity 
-        style={[styles.submitButton, files.length === 0 && styles.disabledButton]}
+        style={[
+          styles.submitButton, 
+          (files.length === 0 || isSubmitting) && styles.disabledButton
+        ]}
         onPress={handleSubmit}
-        disabled={files.length === 0}
+        disabled={files.length === 0 || isSubmitting}
       >
         <Text style={styles.submitButtonText}>
-          {files.length > 0 ? 'Submit Assignment' : 'Select a file to submit'}
+          {isSubmitting ? 'Submitting...' : 
+           files.length > 0 ? 'Submit Assignment' : 'Select a PDF file to submit'}
         </Text>
       </TouchableOpacity>
     </View>
