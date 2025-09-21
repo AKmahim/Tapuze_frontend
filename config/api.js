@@ -7,7 +7,7 @@
 
 const CONFIG = {
   // Your computer's IP address (found via ifconfig)
-  API_BASE_URL: 'http://192.168.0.105:3001/api',
+  API_BASE_URL: 'http://192.168.10.238:3001/api',
   
   // Alternative configurations you can use:
   // LOCALHOST: 'http://localhost:3001/api',           // For web or iOS simulator
